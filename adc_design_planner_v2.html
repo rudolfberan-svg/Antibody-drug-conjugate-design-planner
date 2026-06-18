@@ -1,0 +1,2082 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ADC Design Planner</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0A1628;
+    --panel: #112240;
+    --panel2: #1A2F4A;
+    --border: #1E3A5F;
+    --teal: #00C9B1;
+    --teal-dim: rgba(0,201,177,0.12);
+    --teal-glow: rgba(0,201,177,0.35);
+    --amber: #F5A623;
+    --amber-dim: rgba(245,166,35,0.12);
+    --red: #FF5C7A;
+    --red-dim: rgba(255,92,122,0.12);
+    --blue: #4A9EFF;
+    --blue-dim: rgba(74,158,255,0.12);
+    --text: #E8F0F8;
+    --text-dim: #7A9ABF;
+    --text-muted: #4A6A8A;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  /* HEADER */
+  header {
+    background: linear-gradient(135deg, #0A1628 0%, #0D1F3C 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 18px 32px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-icon {
+    width: 40px; height: 40px;
+    background: var(--teal-dim);
+    border: 1.5px solid var(--teal);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+  }
+  header h1 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 20px; font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.3px;
+  }
+  header h1 span { color: var(--teal); }
+  .header-sub {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-left: auto;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* LAYOUT */
+  .app-layout {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 0;
+    height: calc(100vh - 73px);
+  }
+  .main-content {
+    overflow-y: auto;
+    padding: 28px 32px;
+    border-right: 1px solid var(--border);
+  }
+  .sidebar {
+    overflow-y: auto;
+    padding: 24px 20px;
+    background: linear-gradient(180deg, #0D1F3C 0%, #0A1628 100%);
+  }
+
+  /* STEP NAV */
+  .step-nav {
+    display: flex;
+    gap: 0;
+    margin-bottom: 28px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--panel);
+  }
+  .step-btn {
+    flex: 1;
+    padding: 10px 6px;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    text-align: center;
+    border-right: 1px solid var(--border);
+    transition: all 0.2s;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+  }
+  .step-btn:last-child { border-right: none; }
+  .step-btn .step-num {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--panel2);
+    border: 1.5px solid var(--border);
+    color: var(--text-muted);
+    font-size: 11px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Space Grotesk', sans-serif;
+    transition: all 0.2s;
+  }
+  .step-btn.active { color: var(--teal); background: var(--teal-dim); }
+  .step-btn.active .step-num {
+    background: var(--teal);
+    border-color: var(--teal);
+    color: #0A1628;
+  }
+  .step-btn.done { color: var(--text-dim); }
+  .step-btn.done .step-num {
+    background: rgba(0,201,177,0.2);
+    border-color: var(--teal);
+    color: var(--teal);
+  }
+  .step-btn:hover:not(.active) { background: rgba(255,255,255,0.03); color: var(--text-dim); }
+
+  /* SECTION */
+  .section-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 18px; font-weight: 700;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+  .section-desc {
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-bottom: 20px;
+  }
+
+  /* CARDS GRID */
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .option-card {
+    background: var(--panel);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .option-card:hover {
+    border-color: var(--teal);
+    background: var(--teal-dim);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0,201,177,0.12);
+  }
+  .option-card.selected {
+    border-color: var(--teal);
+    background: var(--teal-dim);
+    box-shadow: 0 0 0 1px var(--teal);
+  }
+  .option-card.selected::after {
+    content: '✓';
+    position: absolute;
+    top: 10px; right: 12px;
+    color: var(--teal);
+    font-size: 14px; font-weight: 700;
+  }
+  .card-label {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 13px; font-weight: 600;
+    color: var(--text);
+    margin-bottom: 5px;
+  }
+  .card-desc { font-size: 11.5px; color: var(--text-dim); line-height: 1.4; }
+  .card-tag {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 10px; font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.3px;
+  }
+  .tag-teal { background: var(--teal-dim); color: var(--teal); border: 1px solid rgba(0,201,177,0.3); }
+  .tag-amber { background: var(--amber-dim); color: var(--amber); border: 1px solid rgba(245,166,35,0.3); }
+  .tag-red { background: var(--red-dim); color: var(--red); border: 1px solid rgba(255,92,122,0.3); }
+  .tag-blue { background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(74,158,255,0.3); }
+
+  /* INFO BOX */
+  .info-box {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--teal);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 20px;
+    font-size: 12.5px;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+  .info-box strong { color: var(--text); }
+  .warn-box {
+    background: var(--amber-dim);
+    border: 1px solid rgba(245,166,35,0.3);
+    border-left: 3px solid var(--amber);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 20px;
+    font-size: 12.5px;
+    color: #c8962e;
+    line-height: 1.6;
+  }
+  .warn-box strong { color: var(--amber); }
+
+  /* FORM CONTROLS */
+  .form-group { margin-bottom: 18px; }
+  .form-label {
+    font-size: 12px; font-weight: 600;
+    color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.6px;
+    margin-bottom: 8px;
+    display: block;
+  }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  select, input[type="number"], input[type="text"] {
+    width: 100%;
+    background: var(--panel);
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 12px;
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+    appearance: none;
+  }
+  select:focus, input:focus { border-color: var(--teal); }
+  select option { background: #112240; }
+
+  /* RANGE SLIDER */
+  .range-wrap { display: flex; gap: 12px; align-items: center; }
+  input[type="range"] {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    outline: none;
+    padding: 0; border: none;
+    cursor: pointer;
+    margin-bottom: 0;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--teal);
+    cursor: pointer;
+    border: 2px solid var(--bg);
+    box-shadow: 0 2px 6px var(--teal-glow);
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.15);
+    box-shadow: 0 3px 10px var(--teal-glow);
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--teal);
+    cursor: pointer;
+    border: 2px solid var(--bg);
+    box-shadow: 0 2px 6px var(--teal-glow);
+    transition: transform 0.15s;
+  }
+  input[type="range"]::-moz-range-thumb:hover {
+    transform: scale(1.15);
+  }
+  input[type="range"]::-moz-range-track {
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+  }
+  .range-val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px; font-weight: 600;
+    color: var(--teal);
+    background: var(--teal-dim);
+    border: 1px solid rgba(0,201,177,0.25);
+    border-radius: 20px;
+    padding: 3px 10px;
+    min-width: 52px; text-align: center;
+    white-space: nowrap;
+    transition: color 0.3s, background 0.3s;
+  }
+
+  /* NAV BUTTONS */
+  .nav-btns {
+    display: flex; gap: 10px;
+    margin-top: 28px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+  }
+  .btn-primary {
+    padding: 10px 24px;
+    background: var(--teal);
+    color: #0A1628;
+    border: none; border-radius: 8px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 14px; font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-primary:hover { background: #00e5cc; box-shadow: 0 4px 16px var(--teal-glow); }
+  .btn-secondary {
+    padding: 10px 20px;
+    background: var(--panel);
+    color: var(--text-dim);
+    border: 1.5px solid var(--border); border-radius: 8px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 14px; font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-secondary:hover { border-color: var(--text-dim); color: var(--text); }
+  .btn-reset {
+    margin-left: auto;
+    padding: 10px 16px;
+    background: none;
+    color: var(--text-muted);
+    border: 1px solid var(--border); border-radius: 8px;
+    font-size: 12px; cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-reset:hover { color: var(--red); border-color: var(--red); }
+
+  /* SIDEBAR */
+  .sidebar-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 13px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.8px;
+    color: var(--text-dim);
+    margin-bottom: 16px;
+  }
+
+  /* DAR GAUGE */
+  .dar-gauge-wrap {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+    text-align: center;
+  }
+  .dar-label {
+    font-size: 11px; font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.6px;
+    margin-bottom: 10px;
+  }
+  .dar-track {
+    height: 10px;
+    background: var(--panel2);
+    border-radius: 5px;
+    overflow: visible;
+    position: relative;
+    margin-bottom: 10px;
+  }
+  .dar-fill {
+    height: 100%;
+    border-radius: 5px;
+    transition: width 0.5s cubic-bezier(0.34,1.56,0.64,1), background 0.4s;
+    position: relative;
+  }
+  .dar-fill::after {
+    content: '';
+    position: absolute;
+    right: -1px; top: -3px;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: inherit;
+    border: 2px solid var(--bg);
+    box-shadow: 0 0 8px currentColor;
+  }
+  .dar-number {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 36px; font-weight: 700;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .dar-status {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 20px;
+    display: inline-block;
+  }
+  .dar-ticks {
+    display: flex; justify-content: space-between;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px; color: var(--text-muted);
+    padding: 0 2px;
+  }
+
+  /* SUMMARY ROWS */
+  .summary-block {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+  .summary-block-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.8px;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+  }
+  .summary-row {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: 5px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .summary-row:last-child { border-bottom: none; }
+  .summary-key { font-size: 11px; color: var(--text-muted); }
+  .summary-val {
+    font-size: 11px; font-weight: 600;
+    color: var(--text);
+    text-align: right; max-width: 60%;
+  }
+  .summary-val.highlight { color: var(--teal); }
+  .summary-val.warn { color: var(--amber); }
+  .summary-val.danger { color: var(--red); }
+
+  /* RISK FLAGS */
+  .risk-list { display: flex; flex-direction: column; gap: 6px; }
+  .risk-item {
+    display: flex; align-items: flex-start; gap: 8px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 11px; color: var(--text-dim);
+  }
+  .risk-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    margin-top: 3px;
+    flex-shrink: 0;
+  }
+  .risk-low .risk-dot { background: var(--teal); }
+  .risk-med .risk-dot { background: var(--amber); }
+  .risk-high .risk-dot { background: var(--red); }
+
+  /* STEP PANELS */
+  .step-panel { display: none; }
+  .step-panel.active { display: block; animation: fadeIn 0.3s ease-out; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .option-card {
+    transition: all 0.2s ease;
+  }
+
+  /* RESULTS */
+  .results-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  .result-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+  }
+  .result-card h4 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 12px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.6px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+  .result-metric {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 26px; font-weight: 700;
+    color: var(--teal);
+  }
+  .result-sub { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+  .recommendation-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--teal);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 14px;
+  }
+  .rec-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 13px; font-weight: 700;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+  .rec-body { font-size: 12px; color: var(--text-dim); line-height: 1.6; }
+
+  /* TABLE */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    margin-bottom: 20px;
+  }
+  th {
+    padding: 8px 10px;
+    background: var(--panel2);
+    color: var(--text-dim);
+    font-weight: 600;
+    text-align: left;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+
+  /* EXPORT BTN */
+  .btn-export {
+    width: 100%;
+    padding: 12px;
+    background: var(--teal-dim);
+    color: var(--teal);
+    border: 1.5px solid rgba(0,201,177,0.4); border-radius: 8px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 13px; font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 8px;
+  }
+  .btn-export:hover { background: var(--teal); color: #0A1628; }
+
+  /* Progress steps complete indicator */
+  .completion-bar {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 20px;
+  }
+  .comp-seg {
+    flex: 1; height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    transition: background 0.3s;
+  }
+  .comp-seg.done { background: var(--teal); }
+  .comp-seg.active { background: rgba(0,201,177,0.4); }
+
+  /* Indication badge */
+  .ind-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    background: var(--blue-dim);
+    color: var(--blue);
+    border: 1px solid rgba(74,158,255,0.25);
+    border-radius: 20px;
+    font-size: 10px; font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+    margin-right: 4px; margin-bottom: 4px;
+  }
+
+
+  /* REFERENCE ADCs */
+  .ref-filter-row {
+    display: flex; gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .ref-filter-row select {
+    flex: 1; min-width: 160px;
+  }
+  .ref-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+  .ref-card {
+    background: var(--panel);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .ref-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--teal);
+  }
+  .ref-card.status-approved::before { background: var(--teal); }
+  .ref-card.status-clinical::before { background: var(--amber); }
+  .ref-card:hover {
+    border-color: var(--teal);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,201,177,0.1);
+  }
+  .ref-card-header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 10px;
+  }
+  .ref-drug-name {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 15px; font-weight: 700;
+    color: var(--text);
+  }
+  .ref-inn {
+    font-size: 11px; color: var(--text-muted);
+    margin-top: 2px;
+    font-style: italic;
+  }
+  .ref-status-badge {
+    font-size: 10px; font-weight: 700;
+    padding: 3px 8px; border-radius: 20px;
+    font-family: 'JetBrains Mono', monospace;
+    white-space: nowrap;
+  }
+  .badge-approved { background: var(--teal-dim); color: var(--teal); border: 1px solid rgba(0,201,177,0.3); }
+  .badge-clinical  { background: var(--amber-dim); color: var(--amber); border: 1px solid rgba(245,166,35,0.3); }
+  .ref-rows { margin-bottom: 12px; }
+  .ref-row {
+    display: flex; justify-content: space-between;
+    padding: 4px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 11.5px;
+  }
+  .ref-row:last-child { border-bottom: none; }
+  .ref-row-key { color: var(--text-muted); }
+  .ref-row-val { color: var(--text); font-weight: 500; text-align: right; max-width: 60%; }
+  .ref-row-val.teal { color: var(--teal); }
+  .ref-indication {
+    font-size: 11px; color: var(--text-dim);
+    background: var(--panel2);
+    border-radius: 6px;
+    padding: 6px 8px;
+    margin-bottom: 10px;
+    line-height: 1.5;
+  }
+  .ref-note {
+    font-size: 11px; color: var(--text-dim);
+    line-height: 1.5;
+    margin-bottom: 12px;
+  }
+  .btn-load-ref {
+    width: 100%;
+    padding: 8px 12px;
+    background: var(--teal-dim);
+    color: var(--teal);
+    border: 1.5px solid rgba(0,201,177,0.35);
+    border-radius: 7px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 12px; font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.2px;
+  }
+  .btn-load-ref:hover {
+    background: var(--teal); color: #0A1628;
+  }
+
+  @media (max-width: 900px) {
+    .app-layout { grid-template-columns: 1fr; height: auto; }
+    .sidebar { border-top: 1px solid var(--border); }
+    .form-row { grid-template-columns: 1fr; }
+    .results-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-icon">🔬</div>
+  <div>
+    <h1>ADC Design <span>Planner</span></h1>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:1px;">Antibody–Drug Conjugate Design Tool</div>
+  </div>
+  <div class="header-sub">v1.0 · Drug Discovery</div>
+</header>
+
+<div class="app-layout">
+  <!-- MAIN CONTENT -->
+  <div class="main-content">
+
+    <!-- Progress bar -->
+    <div class="completion-bar" id="completionBar">
+      <div class="comp-seg active" id="seg0"></div>
+      <div class="comp-seg" id="seg1"></div>
+      <div class="comp-seg" id="seg2"></div>
+      <div class="comp-seg" id="seg3"></div>
+      <div class="comp-seg" id="seg4"></div>
+      <div class="comp-seg" id="seg5"></div>
+    </div>
+
+    <!-- STEP NAV -->
+    <div class="step-nav">
+      <button class="step-btn active" onclick="goStep(0)">
+        <div class="step-num">1</div>Target
+      </button>
+      <button class="step-btn" onclick="goStep(1)">
+        <div class="step-num">2</div>Antibody
+      </button>
+      <button class="step-btn" onclick="goStep(2)">
+        <div class="step-num">3</div>Payload
+      </button>
+      <button class="step-btn" onclick="goStep(3)">
+        <div class="step-num">4</div>Linker
+      </button>
+      <button class="step-btn" onclick="goStep(4)">
+        <div class="step-num">5</div>Summary
+      </button>
+      <button class="step-btn" onclick="goStep(5)">
+        <div class="step-num">6</div>References
+      </button>
+    </div>
+
+    <!-- STEP 1: TARGET -->
+    <div class="step-panel active" id="step0">
+      <div class="section-title">Select Target Antigen</div>
+      <div class="section-desc">Choose a validated tumor-associated antigen with confirmed expression and internalization.</div>
+
+      <div class="form-row" style="margin-bottom:18px;">
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Tumor Type</label>
+          <select id="tumorType">
+            <option value="">All tumor types</option>
+            <option value="breast">Breast Cancer</option>
+            <option value="gastric">Gastric / GEJ</option>
+            <option value="lung">NSCLC / Lung</option>
+            <option value="urothelial">Urothelial / Bladder</option>
+            <option value="heme">Hematologic Malignancies</option>
+            <option value="colorectal">Colorectal</option>
+            <option value="ovarian">Ovarian</option>
+            <option value="liver">Liver / HCC</option>
+            <option value="other">Other Solid Tumors</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Expression Profile</label>
+          <select id="expressionFilter">
+            <option value="">Any expression</option>
+            <option value="high">High overexpression (IHC 3+)</option>
+            <option value="medium">Moderate (IHC 2+)</option>
+            <option value="amplified">Gene-amplified</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="cards-grid" id="targetCards"></div>
+
+      <div class="form-group">
+        <label class="form-label">Antigen Expression Level in Target Tissue</label>
+        <div class="range-wrap">
+          <input type="range" min="1" max="5" value="3" id="expressionLevel">
+          <div class="range-val" id="expressionVal">3+</div>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">IHC score (1=low, 5=very high). Higher expression improves therapeutic window.</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Estimated Antigen Internalization Efficiency</label>
+        <div class="range-wrap">
+          <input type="range" min="1" max="3" value="2" id="internalizationLevel">
+          <div class="range-val" id="internalizationVal">Moderate</div>
+        </div>
+      </div>
+
+      <div class="info-box" id="targetInfoBox">
+        Select a target antigen above to see mechanistic details and clinical precedent.
+      </div>
+
+      <div class="nav-btns">
+        <button class="btn-primary" onclick="goStep(1)">Next: Antibody →</button>
+        <button class="btn-reset" onclick="resetAll()">↺ Reset All</button>
+      </div>
+    </div>
+
+    <!-- STEP 2: ANTIBODY -->
+    <div class="step-panel" id="step1">
+      <div class="section-title">Antibody Configuration</div>
+      <div class="section-desc">Define the antibody format, isotype, and engineering strategy for conjugation.</div>
+
+      <label class="form-label">Antibody Format</label>
+      <div class="cards-grid" id="abFormatCards"></div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Isotype</label>
+          <select id="isotype">
+            <option value="IgG1">IgG1 (preferred – ADCC/CDC)</option>
+            <option value="IgG1_LALA">IgG1 LALA (Fc-silenced)</option>
+            <option value="IgG2">IgG2 (reduced effector)</option>
+            <option value="IgG4">IgG4 + S228P (stable)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Species</label>
+          <select id="abSpecies">
+            <option value="humanized">Humanized</option>
+            <option value="fully_human">Fully Human</option>
+            <option value="chimeric">Chimeric</option>
+          </select>
+        </div>
+      </div>
+
+      <label class="form-label">Conjugation Site Strategy</label>
+      <div class="cards-grid" id="conjSiteCards"></div>
+
+      <div class="form-group">
+        <label class="form-label">Target DAR (Drug-to-Antibody Ratio)</label>
+        <div class="range-wrap">
+          <input type="range" min="1" max="8" value="4" id="darSlider">
+          <div class="range-val" id="darSliderVal">4</div>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">DAR 2–4 optimal for most ADCs. High DAR (>6) risks aggregation and accelerated clearance.</div>
+      </div>
+
+      <div class="info-box" id="conjInfoBox">
+        Select a conjugation strategy above to see DAR distribution and homogeneity characteristics.
+      </div>
+
+      <div class="nav-btns">
+        <button class="btn-secondary" onclick="goStep(0)">← Back</button>
+        <button class="btn-primary" onclick="goStep(2)">Next: Payload →</button>
+      </div>
+    </div>
+
+    <!-- STEP 3: PAYLOAD -->
+    <div class="step-panel" id="step2">
+      <div class="section-title">Cytotoxic Payload</div>
+      <div class="section-desc">Select the warhead class and specific payload. Consider tumor biology and resistance mechanisms.</div>
+
+      <label class="form-label">Payload Class</label>
+      <div class="cards-grid" id="payloadClassCards"></div>
+
+      <div id="payloadSpecificWrap" style="display:none">
+        <label class="form-label" style="margin-top:4px">Specific Payload</label>
+        <div class="cards-grid" id="payloadSpecificCards"></div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Bystander Effect Desired</label>
+        <select id="bystanderPref">
+          <option value="yes">Yes – membrane-permeable payload preferred</option>
+          <option value="no">No – retain payload inside targeted cells</option>
+          <option value="indifferent">Indifferent</option>
+        </select>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Bystander killing is advantageous in heterogeneous tumors. Requires lipophilic free payload (e.g. MMAE).</div>
+      </div>
+
+      <div class="info-box" id="payloadInfoBox">
+        Select a payload class above to see potency, mechanism, and key clinical examples.
+      </div>
+
+      <div class="nav-btns">
+        <button class="btn-secondary" onclick="goStep(1)">← Back</button>
+        <button class="btn-primary" onclick="goStep(3)">Next: Linker →</button>
+      </div>
+    </div>
+
+    <!-- STEP 4: LINKER -->
+    <div class="step-panel" id="step3">
+      <div class="section-title">Linker Chemistry</div>
+      <div class="section-desc">The linker controls payload release, stability, and PK. Match linker type to payload and tumor microenvironment.</div>
+
+      <label class="form-label">Linker Type</label>
+      <div class="cards-grid" id="linkerCards"></div>
+
+      <div id="linkerSubWrap" style="display:none">
+        <label class="form-label" style="margin-top:4px">Linker Subtype</label>
+        <div class="cards-grid" id="linkerSubCards"></div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Spacer</label>
+          <select id="spacer">
+            <option value="none">No spacer</option>
+            <option value="PEG2">PEG2 (hydrophilicity)</option>
+            <option value="PEG4" selected>PEG4 (reduced aggregation)</option>
+            <option value="PEG8">PEG8 (high DAR ADCs)</option>
+            <option value="glucuronide">Glucuronide (lysosomal)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Self-Immolative Group</label>
+          <select id="selfImmolative">
+            <option value="pAB">p-Aminobenzyl (pAB)</option>
+            <option value="pABC">pAB carbamate (pABC)</option>
+            <option value="none">None</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Plasma Stability Target (t½ extrapolation)</label>
+        <select id="plasmaStability">
+          <option value="very_stable">&gt;7 days (very stable, systemic delivery)</option>
+          <option value="stable">3–7 days (stable)</option>
+          <option value="moderate">1–3 days (moderate, tumor-labile)</option>
+        </select>
+      </div>
+
+      <div class="info-box" id="linkerInfoBox">
+        Select a linker type above to see release mechanism, stability data, and clinical precedent.
+      </div>
+
+      <div class="nav-btns">
+        <button class="btn-secondary" onclick="goStep(2)">← Back</button>
+        <button class="btn-primary" onclick="goStep(4)">Generate Summary →</button>
+      </div>
+    </div>
+
+    <!-- STEP 5: SUMMARY -->
+    <div class="step-panel" id="step4">
+      <div class="section-title">ADC Design Summary</div>
+      <div class="section-desc">Review your design, assess risk flags, and export the profile.</div>
+
+      <div class="results-grid" id="metricsGrid"></div>
+
+      <div id="recCards"></div>
+
+      <div id="riskSection">
+        <div class="section-title" style="font-size:15px;margin-bottom:12px;">Risk & Optimization Flags</div>
+        <div class="risk-list" id="riskList"></div>
+      </div>
+
+      <div style="margin-top:24px">
+        <div class="section-title" style="font-size:15px;margin-bottom:12px;">Regulatory & Preclinical Considerations</div>
+        <div id="regulatoryTable"></div>
+      </div>
+
+      <div class="nav-btns">
+        <button class="btn-secondary" onclick="goStep(3)">← Revise Design</button>
+        <button class="btn-primary" onclick="exportSummary()">⬇ Export Design Report</button>
+        <button class="btn-reset" onclick="resetAll()">↺ Start New</button>
+      </div>
+    </div>
+
+
+    <!-- STEP 6: REFERENCE ADCs -->
+    <div class="step-panel" id="step5">
+      <div class="section-title">Reference ADCs</div>
+      <div class="section-desc">Browse approved and late-stage ADCs. Click <strong>Load into Designer</strong> to pre-populate the design wizard with any example.</div>
+
+      <div class="ref-filter-row">
+        <select id="refFilterTumor">
+          <option value="">All tumor types</option>
+          <option value="breast">Breast Cancer</option>
+          <option value="gastric">Gastric / GEJ</option>
+          <option value="lung">Lung / NSCLC</option>
+          <option value="urothelial">Urothelial</option>
+          <option value="heme">Hematologic</option>
+          <option value="ovarian">Ovarian</option>
+          <option value="colorectal">Colorectal</option>
+        </select>
+        <select id="refFilterPayload">
+          <option value="">All payload classes</option>
+          <option value="tubulin">Tubulin inhibitor</option>
+          <option value="topo1">Topo I inhibitor</option>
+          <option value="dna_alkylating">DNA alkylating</option>
+          <option value="dna_dsb">DNA DSB / Calicheamicin</option>
+        </select>
+        <select id="refFilterStatus">
+          <option value="">All statuses</option>
+          <option value="approved">FDA Approved</option>
+          <option value="clinical">Clinical Stage</option>
+        </select>
+      </div>
+
+      <div id="refCards" class="ref-cards-grid"></div>
+
+      <div class="nav-btns">
+        <button class="btn-secondary" onclick="goStep(4)">← Back to Summary</button>
+        <button class="btn-reset" onclick="resetAll()">↺ Start New Design</button>
+      </div>
+    </div>
+
+  </div><!-- /main-content -->
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-title">Live ADC Profile</div>
+
+    <!-- DAR GAUGE -->
+    <div class="dar-gauge-wrap">
+      <div class="dar-label">Drug-to-Antibody Ratio (DAR)</div>
+      <div class="dar-track">
+        <div class="dar-fill" id="darFill" style="width:50%;background:var(--teal)"></div>
+      </div>
+      <div class="dar-ticks">
+        <span>0</span><span>2</span><span>4</span><span>6</span><span>8</span>
+      </div>
+      <div class="dar-number" id="darDisplay" style="color:var(--teal)">4</div>
+      <div class="dar-status" id="darStatus" style="background:var(--teal-dim);color:var(--teal)">Optimal</div>
+    </div>
+
+    <!-- MOLECULE SUMMARY -->
+    <div class="summary-block">
+      <div class="summary-block-title">Target & Disease</div>
+      <div class="summary-row">
+        <span class="summary-key">Antigen</span>
+        <span class="summary-val highlight" id="sb-target">—</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-key">Tumor type</span>
+        <span class="summary-val" id="sb-tumor">—</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-key">Expression</span>
+        <span class="summary-val" id="sb-expression">—</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-key">Internalization</span>
+        <span class="summary-val" id="sb-intern">—</span>
+      </div>
+    </div>
+
+    <div class="summary-block">
+      <div class="summary-block-title">Antibody</div>
+      <div class="summary-row">
+        <span class="summary-key">Format</span>
+        <span class="summary-val" id="sb-format">—</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-key">Isotype</span>
+        <span class="summary-val" id="sb-isotype">IgG1</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-key">Conjugation</span>
+        <span class="summary-val" id="sb-conjsite">—</span>
+      </div>
+    </div>
+
+    <div class="summary-block">
+      <div class="summary-block-title">Payload & Linker</div>
+      <div class="summary-row">
+        <span class="summary-key">Payload class</span>
+        <span class="summary-val" id="sb-payloadclass">—</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-key">Payload</span>
+        <span class="summary-val highlight" id="sb-payload">—</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-key">Linker</span>
+        <span class="summary-val" id="sb-linker">—</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-key">Bystander</span>
+        <span class="summary-val" id="sb-bystander">—</span>
+      </div>
+    </div>
+
+    <div class="summary-block">
+      <div class="summary-block-title">Comparator ADCs</div>
+      <div id="comparatorList" style="font-size:11px;color:var(--text-dim);line-height:1.8;">
+        Select a target to see approved or clinical-stage comparators.
+      </div>
+    </div>
+
+    <button class="btn-export" onclick="goStep(4)">View Full Summary →</button>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// REFERENCE ADCs DATA
+// ============================================================
+const REFERENCE_ADCS = [
+  {
+    id:'trodelvy',
+    brand:'Trodelvy',
+    inn:'sacituzumab govitecan',
+    company:'Gilead Sciences',
+    status:'approved',
+    target:'TROP2',
+    antibody:'hRS7 (humanized IgG1)',
+    conjSite:'stochastic_lys',
+    isotype:'IgG1',
+    abFormat:'IgG_full',
+    linkerType:'ph_sensitive',
+    linkerSubtype:'carbonate',
+    payloadClass:'topo1',
+    payload:'SN38',
+    dar: 7.6,
+    darNote:'Intentionally high DAR; hydrophilic linker mitigates aggregation',
+    spacer:'none',
+    bystander:'yes',
+    tumor:['breast','urothelial'],
+    indication:'HR+/HER2− mBC, TNBC, urothelial carcinoma, NSCLC (post-chemo/CPI)',
+    approvalYear:'2020 (TNBC), 2021 (UC), 2023 (HR+)',
+    note:'Uses a unique CL2A linker (pH-sensitive + non-cleavable hybrid) that gives DAR~7.6 with acceptable tolerability due to hydrophilic backbone. SN-38 is 100–1000× more potent than irinotecan. Strong bystander effect drives activity in heterogeneous tumors.',
+  },
+  {
+    id:'enhertu',
+    brand:'Enhertu',
+    inn:'trastuzumab deruxtecan (T-DXd)',
+    company:'AstraZeneca / Daiichi Sankyo',
+    status:'approved',
+    target:'HER2',
+    antibody:'Trastuzumab biosimilar (humanized IgG1)',
+    conjSite:'stochastic_cys',
+    isotype:'IgG1',
+    abFormat:'IgG_full',
+    linkerType:'cleavable',
+    linkerSubtype:'glycine_glycine_phenylalanine',
+    payloadClass:'topo1',
+    payload:'DXd',
+    dar: 8,
+    darNote:'High DAR (7-8) enabled by hydrophilic GGFG tetrapeptide linker',
+    spacer:'none',
+    bystander:'yes',
+    tumor:['breast','gastric','lung','other'],
+    indication:'HER2+ / HER2-low mBC, HER2+ gastric, HER2-mutant NSCLC',
+    approvalYear:'2019 (HER2+ BC), 2022 (HER2-low BC), 2023 (NSCLC)',
+    note:'Defining ADC of the modern era. GGFG tetrapeptide linker cleaved by lysosomal cathepsins. DXd (exatecan derivative) is membrane-permeable → strong bystander. DAR8 tolerated due to hydrophilic spacer. Established "HER2-low" as a new therapeutic category.',
+  },
+  {
+    id:'kadcyla',
+    brand:'Kadcyla',
+    inn:'ado-trastuzumab emtansine (T-DM1)',
+    company:'Genentech / Roche',
+    status:'approved',
+    target:'HER2',
+    antibody:'Trastuzumab (humanized IgG1)',
+    conjSite:'stochastic_lys',
+    isotype:'IgG1',
+    abFormat:'IgG_full',
+    linkerType:'non_cleavable',
+    linkerSubtype:'SMCC',
+    payloadClass:'tubulin',
+    payload:'DM1',
+    dar: 3.5,
+    darNote:'Average DAR ~3.5; heterogeneous Lys conjugation (DAR 0–8 species)',
+    spacer:'none',
+    bystander:'no',
+    tumor:['breast'],
+    indication:'HER2+ early & metastatic breast cancer (post-pertuzumab + taxane)',
+    approvalYear:'2013 (mBC), 2019 (adjuvant)',
+    note:'First FDA-approved ADC for solid tumors. Non-cleavable SMCC linker releases Lys-SMCC-DM1 after lysosomal degradation — minimal bystander effect. Antigen-rich HER2+ cells internalize efficiently. Key lesson: SMCC-DM1 requires high antigen density for efficacy.',
+  },
+  {
+    id:'adcetris',
+    brand:'Adcetris',
+    inn:'brentuximab vedotin',
+    company:'Seagen / Pfizer',
+    status:'approved',
+    target:'CD30',
+    antibody:'cAC10 (chimeric IgG1)',
+    conjSite:'stochastic_cys',
+    isotype:'IgG1',
+    abFormat:'IgG_full',
+    linkerType:'cleavable',
+    linkerSubtype:'valine_citrulline',
+    payloadClass:'tubulin',
+    payload:'MMAE',
+    dar: 4,
+    darNote:'Average DAR ~4; partial interchain disulfide reduction',
+    spacer:'PEG4',
+    bystander:'yes',
+    tumor:['heme'],
+    indication:'Hodgkin lymphoma, systemic ALCL, PTCL, primary cutaneous ALCL',
+    approvalYear:'2011 (HL/sALCL), expanded 2017–2022',
+    note:'First modern protease-cleavable ADC. Val-Cit dipeptide cleaved by cathepsin B in lysosomes. MMAE is lipophilic → strong bystander killing of CD30− bystander cells. Defined the mc-VC-PABC-MMAE linker-payload paradigm used in ~40% of all ADCs.',
+  },
+  {
+    id:'padcev',
+    brand:'Padcev',
+    inn:'enfortumab vedotin',
+    company:'Seagen / Astellas',
+    status:'approved',
+    target:'Nectin4',
+    antibody:'AGS-22C3 (fully human IgG1)',
+    conjSite:'stochastic_cys',
+    isotype:'IgG1',
+    abFormat:'IgG_full',
+    linkerType:'cleavable',
+    linkerSubtype:'valine_citrulline',
+    payloadClass:'tubulin',
+    payload:'MMAE',
+    dar: 3.8,
+    darNote:'Average DAR ~3.8; same VC-MMAE platform as Adcetris',
+    spacer:'PEG4',
+    bystander:'yes',
+    tumor:['urothelial'],
+    indication:'Locally advanced or metastatic urothelial carcinoma (1L + pembrolizumab, or post-CPI)',
+    approvalYear:'2019 (accelerated), 2023 (regular approval)',
+    note:'Same mc-VC-PABC-MMAE linker as Adcetris. Nectin-4 is highly expressed in urothelial carcinoma with rapid internalization. Key toxicity: skin/corneal events (Nectin-4 expressed in skin). Combo with pembrolizumab (EV-302) transformed 1L urothelial standard of care.',
+  },
+  {
+    id:'mylotarg',
+    brand:'Mylotarg',
+    inn:'gemtuzumab ozogamicin',
+    company:'Pfizer / Wyeth',
+    status:'approved',
+    target:'CD33',
+    antibody:'hP67.6 (humanized IgG4)',
+    conjSite:'stochastic_lys',
+    isotype:'IgG4',
+    abFormat:'IgG_full',
+    linkerType:'ph_sensitive',
+    linkerSubtype:'hydrazone',
+    payloadClass:'dna_dsb',
+    payload:'Calicheamicin',
+    dar: 2.5,
+    darNote:'Low average DAR ~2–3; ~50% unconjugated Ab in preparation',
+    spacer:'none',
+    bystander:'no',
+    tumor:['heme'],
+    indication:'CD33+ AML (newly diagnosed, relapsed/refractory)',
+    approvalYear:'2000 (withdrawn 2010, re-approved 2017 at lower dose)',
+    note:'First ADC ever approved (2000). Calicheamicin is an enediyne — extremely potent DNA strand cleaver (sub-pM). Hydrazone linker gives modest plasma stability. Withdrawn 2010 due to VOD/hepatotoxicity at high dose; re-approved 2017 at lower fractionated dose (3 mg/m²). Key lesson: narrow TW of DNA-cleaving agents requires careful dose fractionation.',
+  },
+  {
+    id:'besylomab',
+    brand:'Besylomab / Mylotarg (inotuzumab)',
+    inn:'inotuzumab ozogamicin',
+    company:'Pfizer',
+    status:'approved',
+    target:'CD22',
+    antibody:'G5/44 (humanized IgG4)',
+    conjSite:'stochastic_lys',
+    isotype:'IgG4',
+    abFormat:'IgG_full',
+    linkerType:'ph_sensitive',
+    linkerSubtype:'hydrazone',
+    payloadClass:'dna_dsb',
+    payload:'Calicheamicin',
+    dar: 6,
+    darNote:'Average DAR ~6; higher DAR tolerated in B-ALL due to high CD22 density',
+    spacer:'none',
+    bystander:'no',
+    tumor:['heme'],
+    indication:'Relapsed/refractory B-cell acute lymphoblastic leukemia (B-ALL)',
+    approvalYear:'2017',
+    note:'Same calicheamicin-hydrazone platform as Mylotarg. CD22 is internalized very rapidly, enabling higher DAR. Key toxicity: sinusoidal obstruction syndrome (VOD) — risk elevated post-HSCT. Response rates ~80% in R/R B-ALL.',
+  },
+  {
+    id:'polivy',
+    brand:'Polivy',
+    inn:'polatuzumab vedotin',
+    company:'Genentech / Roche',
+    status:'approved',
+    target:'CD79b',
+    antibody:'Anti-CD79b (humanized IgG1)',
+    conjSite:'stochastic_cys',
+    isotype:'IgG1',
+    abFormat:'IgG_full',
+    linkerType:'cleavable',
+    linkerSubtype:'valine_citrulline',
+    payloadClass:'tubulin',
+    payload:'MMAE',
+    dar: 3.5,
+    darNote:'Average DAR ~3.5; mc-VC-PABC-MMAE platform',
+    spacer:'PEG4',
+    bystander:'yes',
+    tumor:['heme'],
+    indication:'Relapsed/refractory DLBCL (+ bendamustine + rituximab); 1L DLBCL (+ R-CHP)',
+    approvalYear:'2019 (accelerated R/R), 2023 (1L regular)',
+    note:'CD79b expressed on mature B cells and DLBCL. VC-MMAE platform. Key feature: CD79b downregulation during B-cell activation can limit tumor exposure — patient selection important. Pola-R-CHP (POLARIX trial) improved PFS in 1L DLBCL over R-CHOP.',
+  },
+  {
+    id:'elahere',
+    brand:'Elahere',
+    inn:'mirvetuximab soravtansine',
+    company:'ImmunoGen / AbbVie',
+    status:'approved',
+    target:'FRalpha',
+    antibody:'M9346A (humanized IgG1)',
+    conjSite:'stochastic_lys',
+    isotype:'IgG1',
+    abFormat:'IgG_full',
+    linkerType:'cleavable',
+    linkerSubtype:'disulfide',
+    payloadClass:'tubulin',
+    payload:'DM4',
+    dar: 3.4,
+    darNote:'Average DAR ~3.4; sulfo-SPDB disulfide linker (hindered)',
+    spacer:'none',
+    bystander:'yes',
+    tumor:['ovarian'],
+    indication:'FRα-positive platinum-resistant ovarian cancer (post 1–3 prior therapies)',
+    approvalYear:'2022 (accelerated), 2024 (regular)',
+    note:'First ADC approved for ovarian cancer. Hindered disulfide linker (sulfo-SPDB) cleaved by intracellular glutathione. DM4 is slightly more lipophilic than DM1 → some bystander. Key: requires FRα high expression (IHC ≥75% cells at ≥2+ intensity) for patient selection.',
+  },
+  {
+    id:'dato_dxd',
+    brand:'Datroway (Dato-DXd)',
+    inn:'datopotamab deruxtecan',
+    company:'AstraZeneca / Daiichi Sankyo',
+    status:'approved',
+    target:'TROP2',
+    antibody:'Datopotamab (humanized IgG1)',
+    conjSite:'stochastic_cys',
+    isotype:'IgG1',
+    abFormat:'IgG_full',
+    linkerType:'cleavable',
+    linkerSubtype:'glycine_glycine_phenylalanine',
+    payloadClass:'topo1',
+    payload:'DXd',
+    dar: 4,
+    darNote:'DAR4; lower than T-DXd (DAR8), improving tolerability profile',
+    spacer:'none',
+    bystander:'yes',
+    tumor:['breast','lung'],
+    indication:'HR+/HER2− mBC (post-CDK4/6i + ET); NSCLC (post-platinum)',
+    approvalYear:'2025',
+    note:'TROP2-targeting DXd-ADC. Same GGFG-DXd linker-payload as Enhertu but DAR4 vs DAR8 — less ILD signal. Competes with Trodelvy in HR+/HER2− BC. Key differentiator vs T-DXd: TROP2 expression broadly expressed, no HER2 testing needed.',
+  },
+  {
+    id:'her3_dxd',
+    brand:'Patritumab deruxtecan (HER3-DXd)',
+    inn:'patritumab deruxtecan',
+    company:'Daiichi Sankyo / AstraZeneca',
+    status:'clinical',
+    target:'HER3',
+    antibody:'Patritumab (fully human IgG1)',
+    conjSite:'stochastic_cys',
+    isotype:'IgG1',
+    abFormat:'IgG_full',
+    linkerType:'cleavable',
+    linkerSubtype:'glycine_glycine_phenylalanine',
+    payloadClass:'topo1',
+    payload:'DXd',
+    dar: 8,
+    darNote:'DAR8; same GGFG-DXd platform as Enhertu',
+    spacer:'none',
+    bystander:'yes',
+    tumor:['lung','breast','other'],
+    indication:'EGFR-mutant NSCLC (post-EGFR TKI, including T790M/C797S); HR+/HER2− BC',
+    approvalYear:'NDA filed 2024; FDA priority review',
+    note:'HER3 is ubiquitously expressed and a key resistance mechanism to EGFR/HER2 inhibitors. DAR8 GGFG-DXd platform. Strong rationale in EGFR-mutant NSCLC post-osimertinib resistance. Phase 3 HERTHENA-Lung02 trial.',
+  },
+  {
+    id:'ifinatamab',
+    brand:'Ifinatamab deruxtecan (I-DXd / DS-7300)',
+    inn:'ifinatamab deruxtecan',
+    company:'Daiichi Sankyo / MSD',
+    status:'clinical',
+    target:'B7H3',
+    antibody:'DS-7300 (humanized IgG1)',
+    conjSite:'stochastic_cys',
+    isotype:'IgG1',
+    abFormat:'IgG_full',
+    linkerType:'cleavable',
+    linkerSubtype:'glycine_glycine_phenylalanine',
+    payloadClass:'topo1',
+    payload:'DXd',
+    dar: 8,
+    darNote:'DAR8 GGFG-DXd; same Daiichi Sankyo DXd platform',
+    spacer:'none',
+    bystander:'yes',
+    tumor:['lung','breast','colorectal','other'],
+    indication:'SCLC (extensive stage, post-platinum), NSCLC, other solid tumors',
+    approvalYear:'Breakthrough designation SCLC 2023; NDA submission planned 2025',
+    note:'B7-H3 (CD276) is broadly expressed in SCLC and many solid tumors with minimal normal tissue expression. DXd platform. Strong single-agent activity in SCLC (ORR ~52% in IDeate-Lung01). Key: B7-H3 not yet established as a predictive biomarker — may enable biomarker-unselected use.',
+  },
+];
+
+// ============================================================
+// REFERENCE ADC RENDERING
+// ============================================================
+function renderRefCards() {
+  const tumorF  = document.getElementById('refFilterTumor')  ? document.getElementById('refFilterTumor').value  : '';
+  const payloadF = document.getElementById('refFilterPayload') ? document.getElementById('refFilterPayload').value : '';
+  const statusF  = document.getElementById('refFilterStatus')  ? document.getElementById('refFilterStatus').value  : '';
+
+  let list = REFERENCE_ADCS;
+  if (tumorF)   list = list.filter(r => r.tumor.includes(tumorF));
+  if (payloadF) list = list.filter(r => r.payloadClass === payloadF);
+  if (statusF)  list = list.filter(r => r.status === statusF);
+
+  const container = document.getElementById('refCards');
+  if (!container) return;
+
+  if (list.length === 0) {
+    container.innerHTML = '<div class="info-box">No reference ADCs match the selected filters.</div>';
+    return;
+  }
+
+  container.innerHTML = list.map(r => {
+    const badgeClass = r.status === 'approved' ? 'badge-approved' : 'badge-clinical';
+    const badgeText  = r.status === 'approved' ? 'FDA Approved' : 'Clinical Stage';
+    const darColor   = r.dar <= 4 ? 'teal' : '';
+    return `
+    <div class="ref-card status-${r.status}">
+      <div class="ref-card-header">
+        <div>
+          <div class="ref-drug-name">${r.brand}</div>
+          <div class="ref-inn">${r.inn}</div>
+        </div>
+        <div class="ref-status-badge ${badgeClass}">${badgeText}</div>
+      </div>
+      <div class="ref-indication">${r.indication}</div>
+      <div class="ref-rows">
+        <div class="ref-row"><span class="ref-row-key">Target</span><span class="ref-row-val teal">${r.target}</span></div>
+        <div class="ref-row"><span class="ref-row-key">Antibody</span><span class="ref-row-val">${r.antibody}</span></div>
+        <div class="ref-row"><span class="ref-row-key">Payload</span><span class="ref-row-val">${r.payload} (${r.payloadClass === 'tubulin' ? 'Tubulin inh.' : r.payloadClass === 'topo1' ? 'Topo I inh.' : r.payloadClass === 'dna_dsb' ? 'DNA DSB' : r.payloadClass})</span></div>
+        <div class="ref-row"><span class="ref-row-key">Linker</span><span class="ref-row-val">${r.linkerSubtype.replace(/_/g,' ')}</span></div>
+        <div class="ref-row"><span class="ref-row-key">DAR</span><span class="ref-row-val ${darColor}">${r.dar} — ${r.darNote}</span></div>
+        <div class="ref-row"><span class="ref-row-key">Approval</span><span class="ref-row-val">${r.approvalYear}</span></div>
+      </div>
+      <div class="ref-note">${r.note}</div>
+      <button class="btn-load-ref" onclick="loadReference('${r.id}')">⬆ Load into Designer</button>
+    </div>`;
+  }).join('');
+}
+
+function loadReference(id) {
+  const r = REFERENCE_ADCS.find(x => x.id === id);
+  if (!r) return;
+
+  // Reset then apply reference values
+  state.target       = r.target;
+  state.abFormat     = r.abFormat;
+  state.isotype      = r.isotype;
+  state.conjSite     = r.conjSite;
+  state.dar          = r.dar <= 8 ? Math.round(r.dar) : 8;
+  state.payloadClass = r.payloadClass;
+  state.payload      = r.payload;
+  state.linkerType   = r.linkerType;
+  state.linkerSubtype= r.linkerSubtype;
+  state.spacer       = r.spacer || 'none';
+  state.bystander    = r.bystander;
+  state.tumorType    = r.tumor[0] || '';
+
+  // Re-render all card groups so selections reflect loaded state
+  renderCards('targetCards', TARGETS, 'target', onTargetSelect);
+  renderCards('abFormatCards', AB_FORMATS, 'abFormat', onFormatSelect);
+  renderCards('conjSiteCards', CONJ_SITES, 'conjSite', onConjSelect);
+  renderCards('payloadClassCards', PAYLOAD_CLASSES, 'payloadClass', onPayloadClassSelect);
+  renderCards('linkerCards', LINKER_TYPES, 'linkerType', onLinkerSelect);
+
+  // Show payload subtypes for the loaded class
+  const specific = SPECIFIC_PAYLOADS[r.payloadClass];
+  if (specific) {
+    const wrap = document.getElementById('payloadSpecificWrap');
+    if (wrap) wrap.style.display = '';
+    renderCards('payloadSpecificCards', specific, 'payload', onPayloadSelect);
+  }
+
+  // Show linker subtypes
+  const subs = LINKER_SUBTYPES[r.linkerType];
+  if (subs) {
+    const wrap = document.getElementById('linkerSubWrap');
+    if (wrap) wrap.style.display = '';
+    renderCards('linkerSubCards', subs, 'linkerSubtype', onLinkerSubSelect);
+  }
+
+  // Sync form controls
+  const isotopeEl = document.getElementById('isotype');
+  if (isotopeEl) isotopeEl.value = r.isotype;
+  const spacerEl = document.getElementById('spacer');
+  if (spacerEl) spacerEl.value = r.spacer || 'none';
+  const bystanderEl = document.getElementById('bystanderPref');
+  if (bystanderEl) bystanderEl.value = r.bystander;
+
+  // Update DAR gauge
+  updateDAR(state.dar);
+  updateSidebar();
+
+  // Navigate to Step 1 so user can review/edit the loaded design
+  goStep(0);
+
+  // Brief confirmation flash on the target info box
+  const infoBox = document.getElementById('targetInfoBox');
+  if (infoBox) {
+    const tgt = TARGETS.find(t => t.id === r.target);
+    infoBox.innerHTML = `<strong>✓ Loaded: ${r.brand} (${r.inn})</strong><br>Design pre-populated from reference. Review each step and adjust as needed.${tgt ? '<br><br><strong>' + tgt.name + ':</strong> ' + tgt.desc : ''}`;
+    infoBox.style.borderLeftColor = 'var(--teal)';
+  }
+}
+
+// ============================================================
+// DATA
+// ============================================================
+
+const TARGETS = [
+  { id:'HER2', name:'HER2 (ERBB2)', tumor:['breast','gastric','lung','other'], expression:'high', internalization:'high',
+    desc:'Amplified/overexpressed RTK; best-validated ADC target. Strong internalization via clathrin-mediated endocytosis.',
+    comparators:['Kadcyla (T-DM1)','Enhertu (T-DXd)','Disitamab vedotin'],
+    tags:['FDA Approved ADC','High Internalization'] },
+  { id:'TROP2', name:'TROP2 (TACSTD2)', tumor:['breast','urothelial','lung','other'], expression:'high', internalization:'high',
+    desc:'Cell-surface glycoprotein overexpressed in multiple carcinomas. Rapid internalization after antibody binding.',
+    comparators:['Trodelvy (sacituzumab govitecan)','Dato-DXd'],
+    tags:['FDA Approved ADC','Pan-Tumor'] },
+  { id:'HER3', name:'HER3 (ERBB3)', tumor:['breast','lung','other'], expression:'medium',internalization:'moderate',
+    desc:'Dimerization partner for ERBB family; implicated in resistance to EGFR/HER2 inhibitors. Emerging ADC target.',
+    comparators:['Patritumab deruxtecan (HER3-DXd)'],
+    tags:['Clinical Stage','Resistance Driver'] },
+  { id:'B7H3', name:'B7-H3 (CD276)', tumor:['breast','lung','colorectal','other'], expression:'high', internalization:'high',
+    desc:'Immune checkpoint molecule broadly overexpressed in solid tumors. Minimal normal tissue expression.',
+    comparators:['Ifinatamab deruxtecan','DS-7300a'],
+    tags:['Clinical Stage','Broad Expression'] },
+  { id:'Nectin4', name:'Nectin-4 (PVRL4)', tumor:['urothelial','breast','lung'], expression:'high',internalization:'high',
+    desc:'Tight junction protein overexpressed in urothelial carcinoma. Rapid receptor recycling enhances payload delivery.',
+    comparators:['Padcev (enfortumab vedotin)'],
+    tags:['FDA Approved ADC'] },
+  { id:'FRalpha', name:'Folate Receptor α (FRα)', tumor:['ovarian','lung','other'], expression:'high',internalization:'high',
+    desc:'GPI-anchored protein highly overexpressed in ovarian cancer. Internalizes via receptor-mediated endocytosis.',
+    comparators:['Elahere (mirvetuximab soravtansine)'],
+    tags:['FDA Approved ADC','Gynecologic'] },
+  { id:'CD33', name:'CD33 (SIGLEC3)', tumor:['heme'], expression:'high',internalization:'moderate',
+    desc:'Myeloid differentiation antigen expressed on AML blasts and leukemic stem cells.',
+    comparators:['Mylotarg (gemtuzumab ozogamicin)','Vadastuximab talirine'],
+    tags:['FDA Approved ADC','AML'] },
+  { id:'CD30', name:'CD30 (TNFRSF8)', tumor:['heme'], expression:'high',internalization:'high',
+    desc:'TNF receptor superfamily member expressed on Reed-Sternberg cells (HL) and anaplastic large cell lymphoma.',
+    comparators:['Adcetris (brentuximab vedotin)'],
+    tags:['FDA Approved ADC','Lymphoma'] },
+  { id:'CD79b', name:'CD79b', tumor:['heme'], expression:'high',internalization:'high',
+    desc:'B-cell receptor co-receptor expressed on mature B-cells and B-cell lymphomas (DLBCL).',
+    comparators:['Polivy (polatuzumab vedotin)'],
+    tags:['FDA Approved ADC','B-cell Lymphoma'] },
+  { id:'GPC3', name:'Glypican-3 (GPC3)', tumor:['liver','other'], expression:'high',internalization:'moderate',
+    desc:'Oncofetal heparan sulfate proteoglycan. Highly expressed in HCC, minimal normal liver expression.',
+    comparators:['Codrituzumab (GC33)','HER2-GPC3 biADC'],
+    tags:['Clinical Stage','HCC'] },
+  { id:'EGFR', name:'EGFR (HER1)', tumor:['lung','colorectal','other'], expression:'high',internalization:'moderate',
+    desc:'Receptor tyrosine kinase; high-copy amplification in NSCLC and colorectal. Moderate internalization.',
+    comparators:['MRG003 (EGFR-MMAE)','ABT-414 (depatuxizumab)'],
+    tags:['Clinical Stage','Solid Tumor'] },
+  { id:'CEACAM5', name:'CEACAM5 (CEA)', tumor:['colorectal','lung','gastric'], expression:'high',internalization:'moderate',
+    desc:'Carcinoembryonic antigen; broadly overexpressed in GI and lung adenocarcinoma.',
+    comparators:['Tusamitamab ravtansine','BNT323/DB-1303'],
+    tags:['Clinical Stage','GI/Lung'] },
+];
+
+const AB_FORMATS = [
+  { id:'IgG_full', name:'Full-length IgG', desc:'Standard ~150 kDa antibody. Long half-life (21 days), FcRn-mediated recycling, supports Fc effector function.', tag:'Standard', tagClass:'tag-teal' },
+  { id:'bispecific', name:'Bispecific ADC', desc:'Dual-target engagement (e.g. HER2 + HER3). Overcome resistance, enhance tumor selectivity.', tag:'Next-Gen', tagClass:'tag-blue' },
+  { id:'Fab2', name:'F(ab′)₂ Fragment', desc:'~100 kDa. No Fc-mediated toxicity, faster clearance. Useful for solid tumors with high IFP.', tag:'Fragment', tagClass:'tag-amber' },
+  { id:'nanobody', name:'VHH Nanobody ADC', desc:'~15 kDa single-domain. Deep tumor penetration; very short half-life requires albumin fusion or frequent dosing.', tag:'Emerging', tagClass:'tag-blue' },
+];
+
+const CONJ_SITES = [
+  { id:'stochastic_lys', name:'Lysine (Stochastic)', desc:'NHS-ester coupling to ~80 surface Lys residues. Heterogeneous DAR distribution (DAR 0–8). Simple, scalable.', tag:'DAR: Heterogeneous', tagClass:'tag-amber' },
+  { id:'stochastic_cys', name:'Cys (Partial Reduction)', desc:'Interchain disulfide reduction followed by maleimide coupling. DAR 2–8. More homogeneous than Lys.', tag:'DAR: Semi-uniform', tagClass:'tag-teal' },
+  { id:'engineered_cys', name:'Engineered Cys (THIOMAB)', desc:'Site-specific Cys insertion at defined positions (e.g. HC-A114C). DAR 2, high homogeneity.', tag:'DAR: DAR2 uniform', tagClass:'tag-teal' },
+  { id:'unnatural_aa', name:'Unnatural Amino Acid', desc:'pAcPhe or other UAA incorporation via amber codon suppression. Bioorthogonal conjugation, DAR 2, highest precision.', tag:'DAR: Precise', tagClass:'tag-blue' },
+  { id:'enzymatic', name:'Enzymatic (Sortase/TGase)', desc:'Transglutaminase or Sortase A-mediated site-specific conjugation. DAR 2–4. Mild conditions, scalable.', tag:'DAR: Site-specific', tagClass:'tag-teal' },
+  { id:'glycosite', name:'Glycosite Engineering', desc:'Conjugation to engineered glycan at N297 or other N-glycosylation site. Distal from binding site.', tag:'DAR: Site-specific', tagClass:'tag-blue' },
+];
+
+const PAYLOAD_CLASSES = [
+  { id:'tubulin', name:'Tubulin Inhibitors (Auristatins / Maytansinoids)', desc:'Anti-mitotic agents targeting microtubule polymerization. Cell-cycle dependent (M-phase). Auristatins (MMAE/MMAF) from dolastatin family; maytansinoids (DM1/DM4) from ansamitocin.', tag:'Most Common', tagClass:'tag-teal' },
+  { id:'topo1', name:'Topoisomerase I Inhibitors (Camptothecins)', desc:'DXd (Exatecan deriv.) and SN-38 (irinotecan active metabolite). Cell-cycle independent. Strong bystander effect. Used in newer-generation ADCs.', tag:'Newer-Gen', tagClass:'tag-blue' },
+  { id:'dna_alkylating', name:'DNA Alkylating / Cross-Linking Agents', desc:'Duocarmycins, pyrrolobenzodiazepines (PBDs), indolinobenzodiazepines (IGNs). Ultra-potent, cell-cycle independent. High risk of bone marrow toxicity.', tag:'Ultra-Potent', tagClass:'tag-amber' },
+  { id:'dna_dsb', name:'DNA Double-Strand Break (Calicheamicins)', desc:'Calicheamicins (e.g. ozogamicin). Extremely potent DNA strand cleaving agents. Used in gemtuzumab/inotuzumab.', tag:'High Potency', tagClass:'tag-amber' },
+  { id:'rna_pol', name:'RNA Polymerase II Inhibitors (Amatoxins)', desc:'α-Amanitin inhibits RNA Pol II. Non-mitotic mechanism, active in quiescent cells. Emerging class with high hepatotoxicity risk.', tag:'Emerging', tagClass:'tag-blue' },
+  { id:'bcl2', name:'Immune Payload (TLR Agonists / ISACs)', desc:'Toll-like receptor agonists or STING agonists as payloads. Immunostimulatory rather than cytotoxic; repolarize TME.', tag:'Immuno-ADC', tagClass:'tag-blue' },
+];
+
+const SPECIFIC_PAYLOADS = {
+  tubulin: [
+    { id:'MMAE', name:'MMAE (monomethyl auristatin E)', desc:'Lipophilic, membrane-permeable → strong bystander. pM-range potency. Most widely used auristatin.', tag:'Bystander+', tagClass:'tag-teal' },
+    { id:'MMAF', name:'MMAF (monomethyl auristatin F)', desc:'Charged variant; minimal bystander effect. Slightly lower potency. Useful for antigens with heterogeneous expression.', tag:'No Bystander', tagClass:'tag-amber' },
+    { id:'DM1', name:'DM1 (emtansine)', desc:'Maytansinoid. Conjugated via SMCC (non-cleavable). Low bystander. Used in Kadcyla (T-DM1).', tag:'T-DM1 payload', tagClass:'tag-teal' },
+    { id:'DM4', name:'DM4 (ravtansine)', desc:'Maytansinoid with more cleavable disulfide linker. Higher bystander than DM1. Used in SAR3419, mirvetuximab.', tag:'Bystander±', tagClass:'tag-teal' },
+  ],
+  topo1: [
+    { id:'DXd', name:'DXd (Deruxtecan payload)', desc:'Exatecan derivative; very high membrane permeability → potent bystander. Used in Enhertu, Dato-DXd, HER3-DXd.', tag:'Enhertu / DXd-ADCs', tagClass:'tag-teal' },
+    { id:'SN38', name:'SN-38', desc:'Active metabolite of irinotecan. Moderate potency. Conjugated in Trodelvy (pH-sensitive hydrazone linker).', tag:'Trodelvy payload', tagClass:'tag-teal' },
+  ],
+  dna_alkylating: [
+    { id:'PBD', name:'PBD (pyrrolobenzodiazepine dimer)', desc:'Cross-links DNA minor groove. Sub-pM potency. High myelotoxicity risk. Used in rovalpituzumab, vadastuximab.', tag:'Sub-pM', tagClass:'tag-red' },
+    { id:'Duocarmycin', name:'Duocarmycin', desc:'Alkylates adenine N3 in minor groove. Cell-cycle independent. Multiple clinical-stage ADCs.', tag:'Clinical Stage', tagClass:'tag-amber' },
+  ],
+  dna_dsb: [
+    { id:'Calicheamicin', name:'Calicheamicin γ1', desc:'Enediyne antibiotic. DNA double-strand breaks via radical mechanism. Very narrow therapeutic window. Used in gemtuzumab, inotuzumab.', tag:'Narrow TW', tagClass:'tag-red' },
+  ],
+  rna_pol: [
+    { id:'aAmanitin', name:'α-Amanitin', desc:'Mushroom toxin; irreversible RNA Pol II inhibitor. Active in non-dividing cells. Clinical trials in development.', tag:'Non-Mitotic', tagClass:'tag-blue' },
+  ],
+  bcl2: [
+    { id:'STING', name:'STING Agonist (e.g. diABZI)', desc:'Innate immune activation → IFN-I production. No direct cytotoxicity. Repolarizes cold tumors.', tag:'Immuno', tagClass:'tag-blue' },
+    { id:'TLR7', name:'TLR7/8 Agonist (e.g. R848)', desc:'MyD88-dependent innate immune activation. Combination with checkpoint therapy rational.', tag:'Immuno', tagClass:'tag-blue' },
+  ],
+};
+
+const LINKER_TYPES = [
+  { id:'cleavable', name:'Cleavable Linker', desc:'Releases free payload inside tumor cells. Best for MMAE, DXd. Enables bystander effect. Main approach for most modern ADCs.', tag:'Preferred', tagClass:'tag-teal' },
+  { id:'non_cleavable', name:'Non-Cleavable Linker', desc:'Payload released only after full antibody catabolism in lysosomes (as amino acid–drug adduct). Less bystander. Used in T-DM1 (SMCC-DM1).', tag:'Stable', tagClass:'tag-amber' },
+  { id:'ph_sensitive', name:'pH-Sensitive (Acid-Labile)', desc:'Hydrazone or acetal; cleaves at endosomal/lysosomal pH (~5.0). Used in Mylotarg, Trodelvy. Moderate plasma stability.', tag:'Endosomal Release', tagClass:'tag-blue' },
+];
+
+const LINKER_SUBTYPES = {
+  cleavable: [
+    { id:'valine_citrulline', name:'Val-Cit (Valine-Citrulline)', desc:'Cathepsin B-cleavable dipeptide. Standard for MMAE ADCs (Adcetris, Padcev). Excellent plasma stability.', tag:'Gold Standard', tagClass:'tag-teal' },
+    { id:'glycine_glycine_phenylalanine', name:'Gly-Gly-Phe-Gly', desc:'Lysosomal protease (cathepsin)-cleavable. Used with DXd payload in Enhertu. Tetrapeptide design.', tag:'DXd Linker', tagClass:'tag-teal' },
+    { id:'disulfide', name:'Disulfide (hindered)', desc:'Cleaved by intracellular glutathione. Differential GSH: intracellular (~10 mM) vs plasma (~5 µM). Used with DM4.', tag:'GSH-Labile', tagClass:'tag-amber' },
+  ],
+  non_cleavable: [
+    { id:'SMCC', name:'SMCC (succinimidyl-4-(N-maleimidomethyl)cyclohexane)', desc:'Maleimide-thioether. Stable linker for Lys conjugation. Releases Lys-SMCC-DM1 after lysosomal degradation.', tag:'T-DM1 Linker', tagClass:'tag-amber' },
+    { id:'mc', name:'MC (maleimidocaproyl)', desc:'Thioether bond after Cys conjugation. Non-cleavable. More hydrophobic than SMCC.', tag:'Non-Cleavable', tagClass:'tag-amber' },
+  ],
+  ph_sensitive: [
+    { id:'hydrazone', name:'Hydrazone', desc:'Reversible acid-labile bond. Cleaves at pH ~5. Some systemic release (~10% in plasma). Used in Mylotarg.', tag:'Classic', tagClass:'tag-amber' },
+    { id:'carbonate', name:'Carbonate (acid-labile)', desc:'More stable hydrazone analog. Used in sacituzumab govitecan (pH-sensitive) combined with Gly-Gly backbone.', tag:'Modern', tagClass:'tag-teal' },
+  ],
+};
+
+// ============================================================
+// STATE
+// ============================================================
+let state = {
+  target: null,
+  tumorType: '',
+  expressionLevel: 3,
+  internalizationLevel: 2,
+  abFormat: null,
+  isotype: 'IgG1',
+  conjSite: null,
+  dar: 4,
+  payloadClass: null,
+  payload: null,
+  bystander: 'yes',
+  linkerType: null,
+  linkerSubtype: null,
+  spacer: 'PEG4',
+  selfImmolative: 'pAB',
+  plasmaStability: 'very_stable',
+  currentStep: 0,
+};
+
+// ============================================================
+// RENDER CARDS
+// ============================================================
+function renderCards(containerId, items, stateKey, onSelect) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.innerHTML = '';
+  items.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'option-card' + (state[stateKey] === item.id ? ' selected' : '');
+    div.setAttribute('data-card-id', item.id);
+    div.setAttribute('data-card-container', containerId);
+    div.setAttribute('data-card-state-key', stateKey);
+    div.innerHTML = `<div class="card-label">${item.name}</div><div class="card-desc">${item.desc}</div>${item.tags ? item.tags.map(t=>`<span class="card-tag tag-teal">${t}</span>`).join('') : (item.tag ? `<span class="card-tag ${item.tagClass}">${item.tag}</span>` : '')}`;
+    // Store callback ref on element
+    div._onSelect = onSelect;
+    div._items = items;
+    div.addEventListener('click', function() {
+      state[stateKey] = item.id;
+      if (this._onSelect) this._onSelect(item);
+      renderCards(containerId, this._items, stateKey, this._onSelect);
+      updateSidebar();
+    });
+    el.appendChild(div);
+  });
+}
+
+// ============================================================
+// STEP LOGIC
+// ============================================================
+function goStep(n) {
+  document.querySelectorAll('.step-panel').forEach((p,i) => p.classList.toggle('active', i===n));
+  document.querySelectorAll('.step-btn').forEach((b,i) => {
+    b.classList.remove('active','done');
+    if(i===n) b.classList.add('active');
+    else if(i<n) b.classList.add('done');
+  });
+  document.querySelectorAll('.comp-seg').forEach((s,i) => {
+    s.classList.remove('done','active');
+    if(i<n) s.classList.add('done');
+    else if(i===n) s.classList.add('active');
+  });
+  state.currentStep = n;
+  if(n===4) buildSummary();
+  if(n===5) renderRefCards();
+  window.scrollTo(0,0);
+}
+
+// ============================================================
+// STEP INIT
+// ============================================================
+function filterTargets() {
+  state.tumorType = document.getElementById('tumorType').value;
+  let filtered = TARGETS;
+  if(state.tumorType) filtered = TARGETS.filter(t => t.tumor.includes(state.tumorType));
+  renderCards('targetCards', filtered, 'target', onTargetSelect);
+  updateSidebar();
+}
+
+function onTargetSelect(item) {
+  document.getElementById('targetInfoBox').innerHTML = `<strong>${item.name}</strong><br>${item.desc}`;
+  updateSidebar();
+}
+
+function onFormatSelect(item) {
+  document.getElementById('conjInfoBox').innerHTML = `<strong>${item.name}</strong> — ${item.desc}`;
+}
+
+function onConjSelect(item) {
+  document.getElementById('conjInfoBox').innerHTML = `<strong>${item.name}</strong><br>${item.desc}`;
+  updateDAR(state.dar);
+}
+
+function onPayloadClassSelect(item) {
+  state.payload = null;
+  document.getElementById('payloadInfoBox').innerHTML = `<strong>${item.name}</strong><br>${item.desc}`;
+  const specific = SPECIFIC_PAYLOADS[item.id];
+  if(specific) {
+    document.getElementById('payloadSpecificWrap').style.display = '';
+    renderCards('payloadSpecificCards', specific, 'payload', onPayloadSelect);
+  } else {
+    document.getElementById('payloadSpecificWrap').style.display = 'none';
+  }
+  updateSidebar();
+}
+
+function onPayloadSelect(item) {
+  document.getElementById('payloadInfoBox').innerHTML = `<strong>${item.name}</strong><br>${item.desc}`;
+  updateSidebar();
+}
+
+function onLinkerSelect(item) {
+  state.linkerSubtype = null;
+  document.getElementById('linkerInfoBox').innerHTML = `<strong>${item.name}</strong><br>${item.desc}`;
+  const subs = LINKER_SUBTYPES[item.id];
+  if(subs) {
+    document.getElementById('linkerSubWrap').style.display = '';
+    renderCards('linkerSubCards', subs, 'linkerSubtype', onLinkerSubSelect);
+  } else {
+    document.getElementById('linkerSubWrap').style.display = 'none';
+  }
+  updateSidebar();
+}
+
+function onLinkerSubSelect(item) {
+  document.getElementById('linkerInfoBox').innerHTML = `<strong>${item.name}</strong><br>${item.desc}`;
+  updateSidebar();
+}
+
+// ============================================================
+// CONTROLS
+// ============================================================
+function updateDAR(val) {
+  state.dar = parseInt(val);
+  document.getElementById('darSlider').value = val;
+  document.getElementById('darSliderVal').textContent = val;
+  const pct = (state.dar / 8) * 100;
+  const fill = document.getElementById('darFill');
+  fill.style.width = pct + '%';
+  const disp = document.getElementById('darDisplay');
+  const status = document.getElementById('darStatus');
+  disp.textContent = val;
+  if(state.dar <= 1) {
+    fill.style.background = 'var(--text-muted)';
+    disp.style.color = 'var(--text-muted)';
+    status.style.cssText = 'background:rgba(122,154,191,0.1);color:var(--text-muted)';
+    status.textContent = 'Sub-therapeutic';
+  } else if(state.dar <= 4) {
+    fill.style.background = 'var(--teal)';
+    disp.style.color = 'var(--teal)';
+    status.style.cssText = 'background:var(--teal-dim);color:var(--teal)';
+    status.textContent = 'Optimal';
+  } else if(state.dar <= 6) {
+    fill.style.background = 'var(--amber)';
+    disp.style.color = 'var(--amber)';
+    status.style.cssText = 'background:var(--amber-dim);color:var(--amber)';
+    status.textContent = 'Elevated – monitor PK';
+  } else {
+    fill.style.background = 'var(--red)';
+    disp.style.color = 'var(--red)';
+    status.style.cssText = 'background:var(--red-dim);color:var(--red)';
+    status.textContent = 'High – aggregation risk';
+  }
+  updateSidebar();
+}
+
+function updateExpression(val) {
+  state.expressionLevel = parseInt(val);
+  document.getElementById('expressionVal').textContent = val + '+';
+  updateSidebar();
+}
+
+function updateInternalization(val) {
+  state.internalizationLevel = parseInt(val);
+  const labels = ['','Low','Moderate','High'];
+  document.getElementById('internalizationVal').textContent = labels[val];
+  updateSidebar();
+}
+
+function updateDesign() {
+  state.isotype = document.getElementById('isotype').value;
+  state.spacer = document.getElementById('spacer').value;
+  state.selfImmolative = document.getElementById('selfImmolative').value;
+  state.plasmaStability = document.getElementById('plasmaStability').value;
+  state.bystander = document.getElementById('bystanderPref').value;
+  updateSidebar();
+}
+
+// ============================================================
+// SIDEBAR UPDATE
+// ============================================================
+function updateSidebar() {
+  const tgt = TARGETS.find(t => t.id === state.target);
+  const fmt = AB_FORMATS.find(f => f.id === state.abFormat);
+  const conj = CONJ_SITES.find(c => c.id === state.conjSite);
+  const pClass = PAYLOAD_CLASSES.find(p => p.id === state.payloadClass);
+  const pld = state.payload ? Object.values(SPECIFIC_PAYLOADS).flat().find(p => p.id === state.payload) : null;
+  const lnk = LINKER_TYPES.find(l => l.id === state.linkerType);
+  const lSub = state.linkerSubtype ? Object.values(LINKER_SUBTYPES).flat().find(l => l.id === state.linkerSubtype) : null;
+  const internLabels = ['','Low','Moderate','High'];
+
+  set('sb-target', tgt ? tgt.id : '—', tgt ? 'highlight' : '');
+  set('sb-tumor', state.tumorType || (tgt ? tgt.tumor[0] : '—'));
+  set('sb-expression', tgt ? state.expressionLevel + '+' : '—');
+  set('sb-intern', tgt ? internLabels[state.internalizationLevel] : '—');
+  set('sb-format', fmt ? fmt.name.split(' ')[0] : '—');
+  set('sb-isotype', document.getElementById('isotype').value);
+  set('sb-conjsite', conj ? conj.name.split(' ')[0] : '—');
+  set('sb-payloadclass', pClass ? pClass.name.split(' ')[0] : '—');
+  set('sb-payload', pld ? pld.id : (pClass ? pClass.name.split('(')[0].trim() : '—'), pld ? 'highlight' : '');
+  const linkerStr = lSub ? lSub.name.split('(')[0].trim() : (lnk ? lnk.name.split(' ')[0] : '—');
+  set('sb-linker', linkerStr);
+  const bystanderVal = document.getElementById('bystanderPref').value;
+  set('sb-bystander', bystanderVal === 'yes' ? 'Desired' : bystanderVal === 'no' ? 'Not desired' : 'Indifferent');
+
+  // Comparators
+  const compEl = document.getElementById('comparatorList');
+  if(tgt) {
+    compEl.innerHTML = tgt.comparators.map(c => `<div style="padding:3px 0;border-bottom:1px solid var(--border)">${c}</div>`).join('');
+  }
+}
+
+function set(id, val, cls) {
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.textContent = val;
+  el.className = 'summary-val' + (cls ? ' ' + cls : '');
+}
+
+// ============================================================
+// SUMMARY
+// ============================================================
+function buildSummary() {
+  const tgt = TARGETS.find(t => t.id === state.target);
+  const fmt = AB_FORMATS.find(f => f.id === state.abFormat);
+  const conj = CONJ_SITES.find(c => c.id === state.conjSite);
+  const pClass = PAYLOAD_CLASSES.find(p => p.id === state.payloadClass);
+  const pld = state.payload ? Object.values(SPECIFIC_PAYLOADS).flat().find(p => p.id === state.payload) : null;
+  const lnk = LINKER_TYPES.find(l => l.id === state.linkerType);
+  const lSub = state.linkerSubtype ? Object.values(LINKER_SUBTYPES).flat().find(l => l.id === state.linkerSubtype) : null;
+
+  // Metrics
+  let tw = 'Undefined';
+  let twClass = 'result-metric';
+  if(tgt && pld) {
+    const high = ['MMAE','DXd','SN38'].includes(pld.id);
+    tw = high ? 'Broad' : 'Moderate';
+  }
+
+  const darOk = state.dar >= 2 && state.dar <= 4;
+  const darStr = darOk ? 'Optimal' : state.dar > 4 ? 'Elevated' : 'Low';
+
+  let bystander = '—';
+  if(pld) {
+    const bystanderPayloads = ['MMAE','DXd','SN38','Duocarmycin'];
+    bystander = bystanderPayloads.includes(pld.id) ? 'Yes (strong)' : 'Limited';
+  }
+
+  let stab = '—';
+  if(lnk) {
+    stab = lnk.id === 'non_cleavable' ? 'Very stable' : lnk.id === 'ph_sensitive' ? 'Moderate' : 'High';
+  }
+
+  document.getElementById('metricsGrid').innerHTML = `
+    <div class="result-card"><h4>DAR Status</h4><div class="result-metric" style="color:${darOk?'var(--teal)':'var(--amber)'}">${state.dar}</div><div class="result-sub">${darStr}</div></div>
+    <div class="result-card"><h4>Bystander Effect</h4><div class="result-metric" style="color:${bystander.includes('strong')?'var(--teal)':'var(--text-dim)'};font-size:18px">${bystander}</div><div class="result-sub">Payload permeability</div></div>
+    <div class="result-card"><h4>Linker Stability</h4><div class="result-metric" style="font-size:18px;color:var(--teal)">${stab}</div><div class="result-sub">Plasma stability estimate</div></div>
+    <div class="result-card"><h4>Comparator ADCs</h4><div style="margin-top:4px">${tgt ? tgt.comparators.slice(0,2).map(c=>`<div class="ind-badge">${c.split('(')[0].trim()}</div>`).join('') : '<span style="color:var(--text-muted);font-size:12px">Select a target</span>'}</div></div>
+  `;
+
+  // Recommendations
+  let recs = [];
+  if(tgt) recs.push({ title:`Target: ${tgt.id}`, body:`${tgt.desc} ${tgt.comparators.length ? 'Clinical precedent: ' + tgt.comparators.join(', ') + '.' : ''}` });
+  if(conj) {
+    const conjRec = conj.id.includes('engineered') || conj.id.includes('unnatural') || conj.id.includes('enzymatic') || conj.id.includes('glyco')
+      ? 'Site-specific conjugation will provide high DAR homogeneity, improved PK predictability, and better tolerability vs. stochastic methods.'
+      : 'Consider upgrading to site-specific conjugation (THIOMAB, UAA, or enzymatic) to improve DAR uniformity and therapeutic index.';
+    recs.push({ title:'Conjugation Strategy', body: conjRec });
+  }
+  if(pld && lnk) {
+    const mismatch = (pld.id === 'DM1' && lnk.id === 'cleavable') || (pld.id === 'MMAF' && lnk.id === 'ph_sensitive');
+    recs.push({ title:'Payload–Linker Compatibility', body: mismatch
+      ? '⚠ Potential payload-linker mismatch detected. DM1 is optimized for non-cleavable SMCC; MMAF performs best with protease-cleavable linkers.'
+      : 'Payload and linker class are compatible. Confirm in vitro stability in plasma and cytotoxicity against target+ and target− cells.'
+    });
+  }
+  if(state.dar > 6) recs.push({ title:'High DAR Alert', body:'DAR > 6 is associated with increased hydrophobicity, accelerated clearance, and off-target toxicity. Consider site-specific engineering to enforce DAR ≤ 4, or use hydrophilic spacers (PEG4–8) to mitigate aggregation.' });
+
+  document.getElementById('recCards').innerHTML = recs.map(r => `
+    <div class="recommendation-card"><div class="rec-title">${r.title}</div><div class="rec-body">${r.body}</div></div>
+  `).join('');
+
+  // Risks
+  let risks = [];
+  if(!tgt) risks.push({ level:'high', msg:'No target antigen selected — antigen-driven selectivity undefined.' });
+  if(!conj) risks.push({ level:'med', msg:'Conjugation site not specified — DAR distribution and homogeneity unknown.' });
+  if(state.dar > 6) risks.push({ level:'high', msg:'DAR > 6: elevated aggregation risk and accelerated FcRn-independent clearance.' });
+  if(state.dar <= 1) risks.push({ level:'high', msg:'DAR ≤ 1: likely sub-therapeutic payload delivery.' });
+  if(pld && pld.id === 'Calicheamicin') risks.push({ level:'high', msg:'Calicheamicin has a very narrow therapeutic window; requires careful dosing and patient selection (MDR status).' });
+  if(pld && (pld.id === 'PBD')) risks.push({ level:'high', msg:'PBD payload class associated with significant on-target and off-target bone marrow toxicity in clinical settings.' });
+  if(lnk && lnk.id === 'ph_sensitive') risks.push({ level:'med', msg:'pH-sensitive linkers show ~10% premature payload release in plasma; monitor for systemic toxicity.' });
+  if(tgt && tgt.id === 'EGFR') risks.push({ level:'med', msg:'EGFR expression in skin and GI tract — evaluate therapeutic window with normal tissue cross-reactivity assay.' });
+  if(fmt && fmt.id === 'nanobody') risks.push({ level:'med', msg:'VHH nanobody: very short t½ (~2–4 hr) — requires PEGylation or albumin fusion for ADC application.' });
+  if(risks.length === 0) risks.push({ level:'low', msg:'No major design conflicts detected. Proceed to DMPK and in vitro cytotoxicity studies.' });
+
+  document.getElementById('riskList').innerHTML = risks.map(r =>
+    `<div class="risk-item risk-${r.level}"><div class="risk-dot"></div><span>${r.msg}</span></div>`
+  ).join('');
+
+  // Regulatory table
+  document.getElementById('regulatoryTable').innerHTML = `
+    <table>
+      <thead><tr><th>Workstream</th><th>Key Study</th><th>Regulatory Expectation</th></tr></thead>
+      <tbody>
+        <tr><td>DMPK / Stability</td><td>Plasma stability (mouse, rat, human)</td><td>DAR stability, payload release rate, linker hydrolysis t½</td></tr>
+        <tr><td>In Vitro Potency</td><td>Cytotoxicity on target+ / target− lines</td><td>IC50, selectivity ratio ≥10×; bystander assay if applicable</td></tr>
+        <tr><td>In Vivo Efficacy</td><td>CDX / PDX tumor model (qd/qwk dosing)</td><td>Dose-response; TGI at ≥70%; regression preferred</td></tr>
+        <tr><td>GLP Toxicology</td><td>Rat + NHP 4-week repeat dose</td><td>MTD, NOAEL; special attention to heme, liver, ocular</td></tr>
+        <tr><td>CMC / Conjugation</td><td>DAR characterization (HIC-HPLC, MS)</td><td>DAR distribution, aggregation (&lt;2%), endotoxin</td></tr>
+        <tr><td>Bioanalytical</td><td>Total Ab + conjugate ELISA/LBA</td><td>PK for intact ADC, total Ab, free payload (plasma + tissue)</td></tr>
+        <tr><td>Immunogenicity</td><td>ADA assay (bridging ELISA or MSD)</td><td>Pre-IND meeting recommended for novel Ab scaffold</td></tr>
+      </tbody>
+    </table>
+  `;
+}
+
+// ============================================================
+// EXPORT
+// ============================================================
+function exportSummary() {
+  const tgt = TARGETS.find(t => t.id === state.target);
+  const pld = state.payload ? Object.values(SPECIFIC_PAYLOADS).flat().find(p => p.id === state.payload) : null;
+  const lSub = state.linkerSubtype ? Object.values(LINKER_SUBTYPES).flat().find(l => l.id === state.linkerSubtype) : null;
+  const conj = CONJ_SITES.find(c => c.id === state.conjSite);
+  const lnk = LINKER_TYPES.find(l => l.id === state.linkerType);
+
+  const lines = [
+    '============================',
+    '   ADC DESIGN REPORT',
+    '============================',
+    'Generated: ' + new Date().toLocaleString(),
+    '',
+    'TARGET',
+    '  Antigen: ' + (tgt ? tgt.id + ' — ' + tgt.name : 'Not selected'),
+    '  Expression: IHC ' + state.expressionLevel + '+',
+    '  Internalization: ' + ['','Low','Moderate','High'][state.internalizationLevel],
+    '',
+    'ANTIBODY',
+    '  Format: ' + (state.abFormat || 'Not selected'),
+    '  Isotype: ' + document.getElementById('isotype').value,
+    '  Species: ' + document.getElementById('abSpecies').value,
+    '  Conjugation: ' + (conj ? conj.name : 'Not selected'),
+    '  Target DAR: ' + state.dar,
+    '',
+    'PAYLOAD',
+    '  Class: ' + (state.payloadClass || 'Not selected'),
+    '  Payload: ' + (pld ? pld.id + ' — ' + pld.name : 'Not selected'),
+    '  Bystander: ' + document.getElementById('bystanderPref').value,
+    '',
+    'LINKER',
+    '  Type: ' + (lnk ? lnk.name : 'Not selected'),
+    '  Subtype: ' + (lSub ? lSub.name : 'Not selected'),
+    '  Spacer: ' + document.getElementById('spacer').value,
+    '  Self-immolative: ' + document.getElementById('selfImmolative').value,
+    '  Plasma stability: ' + document.getElementById('plasmaStability').value,
+    '',
+    'COMPARATOR ADCs',
+    tgt ? tgt.comparators.map(c => '  • ' + c).join('\n') : '  None (select target)',
+    '',
+    '============================',
+  ];
+
+  const blob = new Blob([lines.join('\n')], {type:'text/plain'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'ADC_Design_Report_' + (tgt ? tgt.id : 'draft') + '.txt';
+  a.click();
+}
+
+// ============================================================
+// RESET
+// ============================================================
+function resetAll() {
+  state = { target:null, tumorType:'', expressionLevel:3, internalizationLevel:2,
+    abFormat:null, isotype:'IgG1', conjSite:null, dar:4,
+    payloadClass:null, payload:null, bystander:'yes',
+    linkerType:null, linkerSubtype:null, spacer:'PEG4', selfImmolative:'pAB', plasmaStability:'very_stable', currentStep:0 };
+  initAll();
+  goStep(0);
+}
+
+// ============================================================
+// SETUP LISTENERS — event delegation on document so listeners
+// are registered once and work regardless of step visibility
+// ============================================================
+function setupListeners() {
+  document.addEventListener('input', function(e) {
+    const id = e.target.id;
+    if (id === 'darSlider')               updateDAR(parseInt(e.target.value));
+    else if (id === 'expressionLevel')    updateExpression(e.target.value);
+    else if (id === 'internalizationLevel') updateInternalization(e.target.value);
+  });
+
+  document.addEventListener('change', function(e) {
+    const id = e.target.id;
+    if (id === 'tumorType' || id === 'expressionFilter') filterTargets();
+    else if (['isotype','abSpecies','bystanderPref',
+               'spacer','selfImmolative','plasmaStability'].includes(id)) updateDesign();
+    else if (['refFilterTumor','refFilterPayload','refFilterStatus'].includes(id)) renderRefCards();
+  });
+}
+
+// ============================================================
+// BOOT
+// ============================================================
+function initAll() {
+  renderCards('targetCards', TARGETS, 'target', onTargetSelect);
+  renderCards('abFormatCards', AB_FORMATS, 'abFormat', onFormatSelect);
+  renderCards('conjSiteCards', CONJ_SITES, 'conjSite', onConjSelect);
+  renderCards('payloadClassCards', PAYLOAD_CLASSES, 'payloadClass', onPayloadClassSelect);
+  renderCards('linkerCards', LINKER_TYPES, 'linkerType', onLinkerSelect);
+  updateDAR(state.dar);
+  updateSidebar();
+}
+
+// Listeners registered once, then init.
+setupListeners();
+initAll();
+</script>
+</body>
+</html>
